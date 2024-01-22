@@ -46,7 +46,7 @@ class Model:
         self.force = force
         self.BC_dim = 10
         self.modules = []
-        self.entire_kMatrix = []
+        self.entire_kMatrix = [[0] * self.nodes for i in range(self.nodes)]
 
         self.createForce()
         self.createKmatrix()
@@ -70,11 +70,21 @@ class Model:
         canvas.create_rectangle(window_gap + self.model_length, window_gap,window_gap + self.model_length + 10, window_gap + self.model_height, fill="black")
 
     def createKmatrix(self):
+        temp_matrix = [[0] * self.nodes for i in range(self.nodes)]
+        temp_var = 0
+        # print("ind_k: " + str(self.modules[0].ind_kMatrix[1][1]))
         for this_node in self.modules:
-            self.entire_kMatrix.append(this_node.ind_kMatrix)
+            for i in range(0, len(this_node.ind_kMatrix[0])):
+                for j in range(0, len(this_node.ind_kMatrix[0])):
+                    print("Setting " + str(this_node.ind_kMatrix[i][j]) + ", at " + str(temp_var + i) + ", " + str(temp_var + j))
+                    if((temp_var) < (len(temp_matrix[0]) - 1)):
+                        temp_matrix[temp_var+i][temp_var+j] = this_node.ind_kMatrix[i][j]
+                        self.entire_kMatrix = self.entire_kMatrix + temp_matrix
+            temp_matrix = [[0] * self.nodes for i in range(self.nodes)]
+            print("Reset")
+            temp_var = temp_var + 1
         
-        print(self.entire_kMatrix)
-
+        # print(self.entire_kMatrix)
 class Module:
     def __init__(self, elastic_mod, cross_section, depth, height, length, dia, numNodes, index):
         self.elastic_mod = elastic_mod
@@ -88,7 +98,7 @@ class Module:
         self.area = 0
         self.k_value = 0
         self.draw_module = canvas.create_rectangle((window_gap + (index * (self.length / self.numNodes))), window_gap, ((window_gap + (index * (self.length / self.numNodes))) + (self.length / self.numNodes)), (window_gap + self.height))
-        self.ind_kMatrix = []
+        self.ind_kMatrix = None
 
         self.calcArea()
         self.calcK()
@@ -104,8 +114,7 @@ class Module:
         self.k_value = (self.elastic_mod * self.area) / self.modLength
 
     def setKMatrix(self):
-        self.ind_kMatrix.append([[self.k_value, -self.k_value],[-self.k_value, self.k_value]])
-        print(self.ind_kMatrix)
+        self.ind_kMatrix = [[self.k_value, -self.k_value],[-self.k_value, self.k_value]]
 
 ## Create GUI -- window and canvas
 window = Tk()
