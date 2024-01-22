@@ -1,5 +1,6 @@
 from tkinter import *
 from math import *
+import numpy as np
 
 ## Relevant Variables
 input_nodes = input_elasticMod = input_length = input_height = input_crossSection = input_force = input_depth = input_dia = None
@@ -7,7 +8,7 @@ window_gap = 50
 
 # Receive input for relevant properties
 #while (not input_elasticMod.isdigit()):
-input_elasticMod = 100000#input("Enter the elastic modulus [Pa]: ")
+input_elasticMod = 200000#input("Enter the elastic modulus [Pa]: ")
 
 #while (not input_length.isdigit()):
 input_length = 500#input("Enter the length of the model [m]: ")
@@ -47,9 +48,13 @@ class Model:
         self.BC_dim = 10
         self.modules = []
         self.entire_kMatrix = [[0] * self.nodes for i in range(self.nodes)]
+        self.forceMatrix = [[0] for i in range(self.nodes)]
+        self.displacementMatrix = []
 
         self.createForce()
         self.createKmatrix()
+        self.setForceMatrix()
+        self.calcDisplacement()
     
     def createForce(self):
         if(self.force > 0):
@@ -72,19 +77,26 @@ class Model:
     def createKmatrix(self):
         temp_matrix = [[0] * self.nodes for i in range(self.nodes)]
         temp_var = 0
-        # print("ind_k: " + str(self.modules[0].ind_kMatrix[1][1]))
         for this_node in self.modules:
             for i in range(0, len(this_node.ind_kMatrix[0])):
                 for j in range(0, len(this_node.ind_kMatrix[0])):
-                    print("Setting " + str(this_node.ind_kMatrix[i][j]) + ", at " + str(temp_var + i) + ", " + str(temp_var + j))
                     if((temp_var) < (len(temp_matrix[0]) - 1)):
                         temp_matrix[temp_var+i][temp_var+j] = this_node.ind_kMatrix[i][j]
-                        self.entire_kMatrix = self.entire_kMatrix + temp_matrix
+            for k in range(0, len(self.entire_kMatrix)):
+                for l in range(0, len(self.entire_kMatrix[k])):
+                    self.entire_kMatrix[k][l] = self.entire_kMatrix[k][l] + temp_matrix[k][l]
             temp_matrix = [[0] * self.nodes for i in range(self.nodes)]
-            print("Reset")
             temp_var = temp_var + 1
         
-        # print(self.entire_kMatrix)
+        # For now, deleting row n and column n b/c BC
+    
+    def setForceMatrix(self):
+        self.forceMatrix[0][0] = self.forceMatrix[0][0] + self.force # For now, the force is only applied to the end of the beam. This can be changed later
+    
+    def calcDisplacement(self):
+        inverse_kMatrix = np.linalg.det(self.entire_kMatrix)
+        print(inverse_kMatrix)
+        
 class Module:
     def __init__(self, elastic_mod, cross_section, depth, height, length, dia, numNodes, index):
         self.elastic_mod = elastic_mod
