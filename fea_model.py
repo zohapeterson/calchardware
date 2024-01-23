@@ -135,7 +135,7 @@ class Model:
         value_space = np.linspace(min_value, max_value, self.nodes) # Create equally space points between the min and max values (for normalization), create the number of nodes points
         normalize = (value_space - min_value) / (max_value - min_value) # Normalize the values
         
-        color_map = cm.rainbow # Chose the turbo color map
+        color_map = cm.plasma # Chose the turbo color map
         colors = color_map(normalize)
 
         self.displacementMatrix = np.sort(self.displacementMatrix) # Just for algorithmic purposes
