@@ -26,7 +26,7 @@ input_dia = 10#input("Enter the diameter of the model [m]: ")
 input_nodes = 10#input("Enter the number of nodes for the model: ")
 
 #while(not input_force.isdigit()):
-input_force = 100#input("Enter the force acted upon the beam [N]: ")
+input_force = 1000000#input("Enter the force acted upon the beam [N]: ")
 
 #while(cross_section.toUpper() != "RECTANGULAR" or cross_section.toUpper() != "CIRCULAR"):
 input_crossSection = "Rectangular"#input("Enter the cross section of the beam [Rectangular or Circular]: ")
@@ -48,13 +48,14 @@ class Model:
         self.BC_dim = 10
         self.modules = []
         self.entire_kMatrix = [[0] * self.nodes for i in range(self.nodes)]
-        self.forceMatrix = [[0] for i in range(self.nodes)]
-        self.displacementMatrix = []
+        self.forceMatrixTranspose = [0] * self.nodes
+        self.displacementMatrix = [0] * self.nodes
 
         self.createForce()
         self.createKmatrix()
         self.setForceMatrix()
         self.calcDisplacement()
+        self.output()
     
     def createForce(self):
         if(self.force > 0):
@@ -87,16 +88,33 @@ class Model:
                     self.entire_kMatrix[k][l] = self.entire_kMatrix[k][l] + temp_matrix[k][l]
             temp_matrix = [[0] * self.nodes for i in range(self.nodes)]
             temp_var = temp_var + 1
-        
-        # For now, deleting row n and column n b/c BC
-    
+      
+        # For now, deleting row n and column n b/c BC (fixed support is unmoving)
+        self.entire_kMatrix.pop(len(self.entire_kMatrix) - 1)
+        for this_node in self.entire_kMatrix:
+            this_node.pop(len(this_node) - 1)
+
+        self.forceMatrixTranspose.pop(len(self.forceMatrixTranspose) - 1)
+
     def setForceMatrix(self):
-        self.forceMatrix[0][0] = self.forceMatrix[0][0] + self.force # For now, the force is only applied to the end of the beam. This can be changed later
+        self.forceMatrixTranspose[0] = self.forceMatrixTranspose[0] + self.force # For now, the force is only applied to the end of the beam. This can be changed later
     
     def calcDisplacement(self):
-        inverse_kMatrix = np.linalg.det(self.entire_kMatrix)
-        print(inverse_kMatrix)
+        inverse_kMatrix = np.linalg.inv(self.entire_kMatrix)
+
+        for i in range(len(inverse_kMatrix)):
+            for j in range(len(inverse_kMatrix[i])):
+                self.displacementMatrix[i] += inverse_kMatrix[i][j] * self.forceMatrixTranspose[j]
+
+    def output(self):
+        print("The displacement of each node is as follows: ")
+        for i in range(len(self.displacementMatrix)):
+            print("Node " + str(i + 1) + ": " + str(self.displacementMatrix[i]) + "m")
         
+        for node in self.modules:
+            node.drawModule()
+        
+
 class Module:
     def __init__(self, elastic_mod, cross_section, depth, height, length, dia, numNodes, index):
         self.elastic_mod = elastic_mod
@@ -109,13 +127,18 @@ class Module:
         self.modLength = self.length / self.numNodes
         self.area = 0
         self.k_value = 0
-        self.draw_module = canvas.create_rectangle((window_gap + (index * (self.length / self.numNodes))), window_gap, ((window_gap + (index * (self.length / self.numNodes))) + (self.length / self.numNodes)), (window_gap + self.height))
+        self.color = "white"
+        self.index = index
+        self.draw_module = None#canvas.create_rectangle((window_gap + (index * (self.length / self.numNodes))), window_gap, ((window_gap + (index * (self.length / self.numNodes))) + (self.length / self.numNodes)), (window_gap + self.height), fill=self.color)
         self.ind_kMatrix = None
 
         self.calcArea()
         self.calcK()
         self.setKMatrix()
     
+    def drawModule(self):
+        self.draw_module = canvas.create_rectangle((window_gap + (self.index * (self.length / self.numNodes))), window_gap, ((window_gap + (self.index * (self.length / self.numNodes))) + (self.length / self.numNodes)), (window_gap + self.height), fill=self.color)
+
     def calcArea(self):
         if(self.mod_crossSection.upper() == "RECTANGULAR"):
             self.area = self.depth * self.height
