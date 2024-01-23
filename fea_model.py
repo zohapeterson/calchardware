@@ -1,40 +1,58 @@
 from tkinter import *
 from math import *
 import numpy as np
+from matplotlib import cm
 
 ## Relevant Variables
-input_nodes = input_elasticMod = input_length = input_height = input_crossSection = input_force = input_depth = input_dia = None
+input_nodes = input_elasticMod = input_length = input_height = input_crossSection = input_force = input_depth = input_dia = ""
 window_gap = 50
 
 # Receive input for relevant properties
-#while (not input_elasticMod.isdigit()):
-input_elasticMod = 200000#input("Enter the elastic modulus [Pa]: ")
+while(input_crossSection != "RECTANGULAR" and input_crossSection != "CIRCULAR"):
+    input_crossSection = input("Enter the cross section of the beam [Rectangular or Circular]: ").upper()
 
-#while (not input_length.isdigit()):
-input_length = 500#input("Enter the length of the model [m]: ")
+while(not input_nodes.isdigit()):
+    input_nodes = input("Enter the number of nodes for the model: ")
+input_nodes = int(input_nodes)
 
-#while(not input_height.isdigit()):
-input_height = 200#input("Enter the height of the model [m]: ")
+while (not input_elasticMod.isdigit()):
+    input_elasticMod = input("Enter the elastic modulus [Pa]: ")
+input_elasticMod = float(input_elasticMod)
 
-#while(not input_depth.isdigit()):
-input_depth = 10#input("Enter the depth of the model [m]: ")
+while(not input_force.isdigit()):
+    input_force = input("Enter the force acted upon the beam [N]: ")
+input_force = float(input_force)
 
-#while(not input_dia.isdigit()):
-input_dia = 10#input("Enter the diameter of the model [m]: ")
+while (not input_length.isdigit()):
+    input_length = input("Enter the length of the model [m]: ")
+input_length = float(input_length)
 
-#while(not input_nodes.isdigit()):
-input_nodes = 10#input("Enter the number of nodes for the model: ")
+if(input_crossSection == "CIRCULAR"): # Circular Cross section
+    while(not input_dia.isdigit()):
+        input_dia = input("Enter the diameter of the model [m]: ")
+    input_dia = float(input_dia)
 
-#while(not input_force.isdigit()):
-input_force = 1000000#input("Enter the force acted upon the beam [N]: ")
+    print("Your model has "  + str(input_nodes) + " nodes, an elastic modulus of " + str(input_elasticMod) + "Pa, an applied force of " + str(input_force) + ", a circular cross section, and a length of " + str(input_length) + "m.")
 
-#while(cross_section.toUpper() != "RECTANGULAR" or cross_section.toUpper() != "CIRCULAR"):
-input_crossSection = "Rectangular"#input("Enter the cross section of the beam [Rectangular or Circular]: ")
+    input_height = input_width = input_dia
 
-# print("Your model has "  + str(input_nodes) + " nodes, an elastic modulus of " + str(input_elasticMod) + "Pa, a length of " + str(input_length) + "m, and a height of " + str(input_height) + "m.")
+    height = 2 * window_gap + input_dia
+else: # Rectangular Cross section
+    while(not input_height.isdigit()):
+        input_height = input("Enter the height of the model [m]: ")
+    input_height = float(input_height)
+
+    while(not input_depth.isdigit()):
+        input_depth = input("Enter the depth of the model [m]: ")
+    input_depth = float(input_depth)
+
+    input_dia = 0
+
+    print("Your model has "  + str(input_nodes) + " nodes, an elastic modulus of " + str(input_elasticMod) + "Pa, an applied force of " + str(input_force) + ", a rectangular cross section, a length of " + str(input_length) + "m, a height of " + str(input_height) + "m, and a depth of " + str(input_depth) + "m.")
+
+    height = 2 * window_gap + input_height
 
 width = 2 * window_gap + input_length
-height = 2 * window_gap + input_height
 
 # Create Object class
 class Model:
@@ -111,9 +129,25 @@ class Model:
         for i in range(len(self.displacementMatrix)):
             print("Node " + str(i + 1) + ": " + str(self.displacementMatrix[i]) + "m")
         
-        for node in self.modules:
-            node.drawModule()
+        max_value = np.max(self.displacementMatrix)
+        min_value = np.min(self.displacementMatrix)
+
+        value_space = np.linspace(min_value, max_value, self.nodes) # Create equally space points between the min and max values (for normalization), create the number of nodes points
+        normalize = (value_space - min_value) / (max_value - min_value) # Normalize the values
         
+        color_map = cm.rainbow # Chose the turbo color map
+        colors = color_map(normalize)
+
+        self.displacementMatrix = np.sort(self.displacementMatrix) # Just for algorithmic purposes
+
+        for i in range(self.nodes):
+            r, g, b, a = colors[self.nodes - 1 - i]
+            r = int(r * 255)
+            g = int(g * 255)
+            b = int(b * 255)
+            hex_color = "#{:02X}{:02X}{:02X}".format(r, g, b)
+            self.modules[i].color = hex_color
+            self.modules[i].drawModule()
 
 class Module:
     def __init__(self, elastic_mod, cross_section, depth, height, length, dia, numNodes, index):
@@ -129,7 +163,7 @@ class Module:
         self.k_value = 0
         self.color = "white"
         self.index = index
-        self.draw_module = None#canvas.create_rectangle((window_gap + (index * (self.length / self.numNodes))), window_gap, ((window_gap + (index * (self.length / self.numNodes))) + (self.length / self.numNodes)), (window_gap + self.height), fill=self.color)
+        self.draw_module = None
         self.ind_kMatrix = None
 
         self.calcArea()
@@ -154,7 +188,7 @@ class Module:
 ## Create GUI -- window and canvas
 window = Tk()
 window.title("FEA")
-window.geometry(str(width)+"x"+str(height))
+window.geometry(str(int(width))+"x"+str(int(height)))
 window.configure(background="#ffffff")
 canvas = Canvas(window, width=width, height=height, bg="#ffffff", highlightthickness=1)
 canvas.pack()
