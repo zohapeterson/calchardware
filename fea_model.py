@@ -5,31 +5,31 @@ from matplotlib import cm
 
 ## Relevant Variables
 input_nodes = input_elasticMod = input_length = input_height = input_crossSection = input_force = input_depth = input_dia = ""
-window_gap = 50
+window_gap = 100
 
 # Receive input for relevant properties
 while(input_crossSection != "RECTANGULAR" and input_crossSection != "CIRCULAR"):
-    input_crossSection = input("Enter the cross section of the beam [Rectangular or Circular]: ").upper()
+    input_crossSection = "CIRCULAR"#input("Enter the cross section of the beam [Rectangular or Circular]: ").upper()
 
 while(not input_nodes.isdigit()):
-    input_nodes = input("Enter the number of nodes for the model: ")
+    input_nodes = "4"#input("Enter the number of nodes for the model: ")
 input_nodes = int(input_nodes)
 
 while (not input_elasticMod.isdigit()):
-    input_elasticMod = input("Enter the elastic modulus [Pa]: ")
+    input_elasticMod = "2"#input("Enter the elastic modulus [Pa]: ")
 input_elasticMod = float(input_elasticMod)
 
-while(not input_force.isdigit()):
-    input_force = input("Enter the force acted upon the beam [N]: ")
+#while(not input_force.isdigit()):
+input_force = "2000"#input("Enter the force acted upon the beam [N]: ")
 input_force = float(input_force)
 
 while (not input_length.isdigit()):
-    input_length = input("Enter the length of the model [m]: ")
+    input_length = "200"#input("Enter the length of the model [m]: ")
 input_length = float(input_length)
 
 if(input_crossSection == "CIRCULAR"): # Circular Cross section
     while(not input_dia.isdigit()):
-        input_dia = input("Enter the diameter of the model [m]: ")
+        input_dia = "200"#input("Enter the diameter of the model [m]: ")
     input_dia = float(input_dia)
 
     print("Your model has "  + str(input_nodes) + " nodes, an elastic modulus of " + str(input_elasticMod) + "Pa, an applied force of " + str(input_force) + ", a circular cross section, and a length of " + str(input_length) + "m.")
@@ -54,6 +54,8 @@ else: # Rectangular Cross section
 
 width = 2 * window_gap + input_length
 
+print((input_force * input_length) / (input_elasticMod * (pi * ((input_dia / 2) ** 2))))
+
 # Create Object class
 class Model:
     def __init__(self, model_length, model_height, model_elasticMod, node_division, cross_section, force):
@@ -68,6 +70,7 @@ class Model:
         self.entire_kMatrix = [[0] * self.nodes for i in range(self.nodes)]
         self.forceMatrixTranspose = [0] * self.nodes
         self.displacementMatrix = [0] * self.nodes
+        self.totalDisplacement = 0
 
         self.createForce()
         self.createKmatrix()
@@ -77,10 +80,10 @@ class Model:
     
     def createForce(self):
         if(self.force > 0):
-            canvas.create_rectangle(3 * self.BC_dim, window_gap + (self.model_height / 2) - (self.BC_dim / 2), window_gap, window_gap + (self.model_height / 2) + (self.BC_dim / 2), fill="red", width = 0)
-            canvas.create_polygon(3 * self.BC_dim, window_gap + (self.model_height / 2) - self.BC_dim, 3 * self.BC_dim, window_gap + (self.model_height / 2) + self.BC_dim, 2 * self.BC_dim, window_gap + self.model_height / 2, fill="red")
+            canvas.create_rectangle(window_gap - 3 * self.BC_dim, window_gap + (self.model_height / 2) - (self.BC_dim / 2), window_gap, window_gap + (self.model_height / 2) + (self.BC_dim / 2), fill="red", width = 0)
+            canvas.create_polygon(window_gap - 3 * self.BC_dim, window_gap + (self.model_height / 2) - self.BC_dim, window_gap - 3 * self.BC_dim, window_gap + (self.model_height / 2) + self.BC_dim, window_gap - 4 * self.BC_dim, window_gap + self.model_height / 2, fill="red")
         else:
-            canvas.create_rectangle(2 * self.BC_dim, window_gap + (self.model_height / 2) - (self.BC_dim / 2), window_gap - self.BC_dim, window_gap + (self.model_height / 2) + (self.BC_dim / 2), fill="red", width = 0)
+            canvas.create_rectangle(window_gap - 3 * self.BC_dim, window_gap + (self.model_height / 2) - (self.BC_dim / 2), window_gap - self.BC_dim, window_gap + (self.model_height / 2) + (self.BC_dim / 2), fill="red", width = 0)
             canvas.create_polygon(window_gap - self.BC_dim, window_gap + (self.model_height / 2) - self.BC_dim, window_gap - self.BC_dim, window_gap + (self.model_height / 2) + self.BC_dim, window_gap, window_gap + (self.model_height / 2), fill="red")
 
         self.createNodes()
@@ -88,10 +91,9 @@ class Model:
     def createNodes(self):
         for i in range(0, self.nodes):
             self.modules.append(Module(input_elasticMod, input_crossSection, input_depth, input_height, input_length, input_dia, input_nodes, i))
-        self.createFixedSupport()
 
     def createFixedSupport(self):
-        canvas.create_rectangle(window_gap + self.model_length, window_gap,window_gap + self.model_length + 10, window_gap + self.model_height, fill="black")
+        canvas.create_rectangle(window_gap + self.model_length + self.totalDisplacement, window_gap - self.BC_dim, window_gap + self.totalDisplacement + self.model_length + self.BC_dim, window_gap + self.model_height + self.BC_dim, fill="black")
 
     def createKmatrix(self):
         temp_matrix = [[0] * self.nodes for i in range(self.nodes)]
@@ -114,11 +116,16 @@ class Model:
 
         self.forceMatrixTranspose.pop(len(self.forceMatrixTranspose) - 1)
 
+        for row in self.entire_kMatrix:
+            print(row)
+
     def setForceMatrix(self):
         self.forceMatrixTranspose[0] = self.forceMatrixTranspose[0] + self.force # For now, the force is only applied to the end of the beam. This can be changed later
     
     def calcDisplacement(self):
         inverse_kMatrix = np.linalg.inv(self.entire_kMatrix)
+        print(inverse_kMatrix)
+        print(self.forceMatrixTranspose)
 
         for i in range(len(inverse_kMatrix)):
             for j in range(len(inverse_kMatrix[i])):
@@ -135,7 +142,7 @@ class Model:
         value_space = np.linspace(min_value, max_value, self.nodes) # Create equally space points between the min and max values (for normalization), create the number of nodes points
         normalize = (value_space - min_value) / (max_value - min_value) # Normalize the values
         
-        color_map = cm.plasma # Chose the turbo color map
+        color_map = cm.plasma # Chose the plasma color map
         colors = color_map(normalize)
 
         self.displacementMatrix = np.sort(self.displacementMatrix) # Just for algorithmic purposes
@@ -147,7 +154,12 @@ class Model:
             b = int(b * 255)
             hex_color = "#{:02X}{:02X}{:02X}".format(r, g, b)
             self.modules[i].color = hex_color
-            self.modules[i].drawModule()
+            self.modules[i].displaced = self.displacementMatrix[self.nodes - 1 - i]
+            self.modules[i].drawModule(self.totalDisplacement)
+            self.totalDisplacement += self.displacementMatrix[self.nodes - 1 - i]
+        
+        print("Total displacement: " + str(self.totalDisplacement) + "m.")
+        self.createFixedSupport()
 
 class Module:
     def __init__(self, elastic_mod, cross_section, depth, height, length, dia, numNodes, index):
@@ -159,6 +171,7 @@ class Module:
         self.dia = dia
         self.numNodes = numNodes
         self.modLength = self.length / self.numNodes
+        self.displaced = 0
         self.area = 0
         self.k_value = 0
         self.color = "white"
@@ -170,8 +183,10 @@ class Module:
         self.calcK()
         self.setKMatrix()
     
-    def drawModule(self):
-        self.draw_module = canvas.create_rectangle((window_gap + (self.index * (self.length / self.numNodes))), window_gap, ((window_gap + (self.index * (self.length / self.numNodes))) + (self.length / self.numNodes)), (window_gap + self.height), fill=self.color)
+    def drawModule(self, total_displacement):
+        x0 = window_gap + total_displacement + (self.modLength * (self.index))
+        x1 = x0 + self.displaced + self.modLength
+        self.draw_module = canvas.create_rectangle(x0, window_gap, x1, (window_gap + self.height), fill=self.color)
 
     def calcArea(self):
         if(self.mod_crossSection.upper() == "RECTANGULAR"):
